@@ -25,6 +25,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Verify model weights
+        run: |
+          if (-not (Test-Path model1.pth)) { throw "model1.pth not found in NumberIdentification/. Commit weights or the build cannot bundle or ship them." }
+          if (-not (Test-Path model2.pth)) { throw "model2.pth not found in NumberIdentification/. Commit weights or the build cannot bundle or ship them." }
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -47,4 +52,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: number-identification-windows-exe
-          path: NumberIdentification/dist/number-identification.exe
+          path: |
+            NumberIdentification/dist/number-identification.exe
+            NumberIdentification/model1.pth
+            NumberIdentification/model2.pth

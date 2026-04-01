@@ -1,3 +1,6 @@
+import sys
+from pathlib import Path
+
 from simple_mlp import SimpleMLP
 from simple_resnet import SimpleResNet
 from helpers.model import predict
@@ -5,10 +8,25 @@ from helpers.clean_up import clean_up
 import torch
 import torchvision.transforms as transforms
 
+
+def _model_path(filename: str) -> Path:
+    if getattr(sys, "frozen", False):
+        beside_exe = Path(sys.executable).resolve().parent / filename
+        if beside_exe.is_file():
+            return beside_exe
+        if hasattr(sys, "_MEIPASS"):
+            return Path(sys._MEIPASS) / filename
+    return Path(__file__).resolve().parent / filename
+
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-state_dict1 = torch.load("model1.pth", weights_only=True, map_location=device)
-state_dict2 = torch.load("model2.pth", weights_only=True, map_location=device)
+state_dict1 = torch.load(
+    _model_path("model1.pth"), weights_only=True, map_location=device
+)
+state_dict2 = torch.load(
+    _model_path("model2.pth"), weights_only=True, map_location=device
+)
 
 simple_mlp = SimpleMLP().to(device)
 simple_resnet = SimpleResNet().to(device)
