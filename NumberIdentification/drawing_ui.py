@@ -1,6 +1,6 @@
 """
 Tkinter UI: draw a digit; debounced inference runs after you pause or release the mouse.
-Predictions are logged via the standard logging module and shown in the window.
+Predictions are shown in dedicated MLP and ResNet sections.
 """
 
 import logging
@@ -12,6 +12,7 @@ import torchvision.transforms as transforms
 from PIL import Image, ImageDraw
 
 import run_model as rm
+from helpers.clean_up import clean_up
 
 CANVAS_SIZE = 280
 IMAGE_SIZE = 28
@@ -84,21 +85,20 @@ class DrawingUI:
         self.canvas.bind("<B1-Motion>", self.on_paint)
         self.canvas.bind("<ButtonRelease-1>", self.on_release)
 
-        log_frame = ttk.LabelFrame(main, text="Log", padding=4)
-        log_frame.pack(fill=tk.BOTH, expand=True, pady=(8, 0))
+        predictions_frame = ttk.Frame(main)
+        predictions_frame.pack(fill=tk.X, pady=(8, 0))
 
-        self.log_text = tk.Text(log_frame, height=6, state=tk.DISABLED, wrap=tk.WORD)
-        scroll = ttk.Scrollbar(log_frame, command=self.log_text.yview)
-        self.log_text.configure(yscrollcommand=scroll.set)
-        self.log_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scroll.pack(side=tk.RIGHT, fill=tk.Y)
+        mlp_frame = ttk.LabelFrame(predictions_frame, text="MLP", padding=8)
+        mlp_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 4))
+        self.mlp_guess_var = tk.StringVar(value="No prediction yet")
+        ttk.Label(mlp_frame, textvariable=self.mlp_guess_var).pack(anchor=tk.W)
 
-        self._log_handler = _TextHandler(self.log_text)
-        self._log_handler.setFormatter(logging.Formatter("%(asctime)s | %(levelname)s | %(message)s"))
-        logger.addHandler(self._log_handler)
-        logger.setLevel(logging.INFO)
+        resnet_frame = ttk.LabelFrame(predictions_frame, text="ResNet", padding=8)
+        resnet_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(4, 0))
+        self.resnet_guess_var = tk.StringVar(value="No prediction yet")
+        ttk.Label(resnet_frame, textvariable=self.resnet_guess_var).pack(anchor=tk.W)
 
-        logger.info("Ready. Draw a digit (0–9).")
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
 
     def _canvas_to_model(self, x: float, y: float) -> tuple[int, int]:
         mx = int(x * IMAGE_SIZE / CANVAS_SIZE)
@@ -144,7 +144,8 @@ class DrawingUI:
         self.pil_image = Image.new("L", (IMAGE_SIZE, IMAGE_SIZE), 255)
         self.pil_draw = ImageDraw.Draw(self.pil_image)
         self.last_x, self.last_y = None, None
-        logger.info("Canvas cleared.")
+        self.mlp_guess_var.set("No prediction yet")
+        self.resnet_guess_var.set("No prediction yet")
 
     def _cancel_predict_job(self) -> None:
         if self._predict_job is not None:
@@ -169,30 +170,32 @@ class DrawingUI:
             out_mlp, out_resnet = rm.run_model(tensor)
         except Exception as e:
             logger.exception("Prediction failed: %s", e)
+            self.mlp_guess_var.set("Prediction failed")
+            self.resnet_guess_var.set("Prediction failed")
             return
 
-        logger.info(
-            "MLP top-3: %s | ResNet top-3: %s",
-            _format_top3(out_mlp),
-            _format_top3(out_resnet),
-        )
+        self.mlp_guess_var.set(_format_top3(out_mlp))
+        self.resnet_guess_var.set(_format_top3(out_resnet))
 
-
-class _TextHandler(logging.Handler):
-    def __init__(self, widget: tk.Text):
-        super().__init__()
-        self.widget = widget
-
-    def emit(self, record: logging.LogRecord) -> None:
-        msg = self.format(record) + "\n"
-
-        def append() -> None:
-            self.widget.configure(state=tk.NORMAL)
-            self.widget.insert(tk.END, msg)
-            self.widget.see(tk.END)
-            self.widget.configure(state=tk.DISABLED)
-
-        self.widget.after(0, append)
+    def on_close(self) -> None:
+        self._cancel_predict_job()
+        try:
+            clean_up(
+                [
+                    rm.simple_mlp,
+                    rm.simple_resnet,
+                    rm.state_dict1,
+                    rm.state_dict2,
+                    rm.test_loader,
+                    rm.test_dataset,
+                    rm.test_transform,
+                ],
+                rm.__dict__,
+            )
+        except Exception as e:
+            logger.warning("Cleanup encountered an issue: %s", e)
+        finally:
+            self.root.destroy()
 
 
 def main() -> None:
