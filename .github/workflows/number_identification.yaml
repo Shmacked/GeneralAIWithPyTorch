@@ -1,0 +1,50 @@
+name: Build NumberIdentification EXE
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "NumberIdentification/**"
+      - ".github/workflows/number_identification.yaml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "NumberIdentification/**"
+      - ".github/workflows/number_identification.yaml"
+  workflow_dispatch:
+
+jobs:
+  build-windows-exe:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: NumberIdentification
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller pillow matplotlib pandas scikit-learn seaborn
+          pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+      - name: Build one-file executable
+        run: >
+          pyinstaller --noconfirm --clean --onefile --windowed --name number-identification
+          --add-data "model1.pth;."
+          --add-data "model2.pth;."
+          drawing_ui.py
+
+      - name: Upload executable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: number-identification-windows-exe
+          path: NumberIdentification/dist/number-identification.exe
