@@ -186,9 +186,6 @@ class DrawingUI:
                     rm.simple_resnet,
                     rm.state_dict1,
                     rm.state_dict2,
-                    rm.test_loader,
-                    rm.test_dataset,
-                    rm.test_transform,
                 ],
                 rm.__dict__,
             )
