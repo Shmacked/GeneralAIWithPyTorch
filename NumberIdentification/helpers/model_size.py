@@ -1,6 +1,6 @@
 import torch
 
-def profile_model_size(model, input_size):
+def profile_model_size(model, input_size, device):
     dummy_input = torch.randn(input_size).to(device)
     with torch.no_grad():
         model(dummy_input)
