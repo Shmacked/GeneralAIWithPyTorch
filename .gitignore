@@ -9,3 +9,4 @@ wheels/
 # Virtual environments
 .venv
 NumberIdentification/data
+NumberIdentification/confusion_matrix_*.png
