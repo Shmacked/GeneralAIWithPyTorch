@@ -9,12 +9,17 @@ from sklearn.metrics import mean_squared_error
 from helpers.model_helpers import make_lag_df, df_to_loader, train_model, predict, model_size_bytes
 from models import RNN, GRU, LSTM
 
+from pathlib import Path
+
+if not Path("models").exists():
+    Path("models").mkdir(parents=True, exist_ok=True)
+
 torch.manual_seed(42)
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f"Using device: {device}")
 
-df = pd.read_csv("datasets/household_power_train.csv", index_col="Timestamp", parse_dates=["Timestamp"])
+df = pd.read_csv("data/household_power_train.csv", index_col="Timestamp", parse_dates=["Timestamp"])
 print(df)
 
 
@@ -42,15 +47,27 @@ gru = GRU().to(device)
 lstm = LSTM().to(device)
 
 mse = nn.MSELoss()
-optimizer_rnn = optim.Adam(rnn.parameters(), lr=0.001)
-optimizer_gru = optim.Adam(gru.parameters(), lr=0.001)
-optimizer_lstm = optim.Adam(lstm.parameters(), lr=0.001)
 
-rnn = train_model(rnn, mse, optimizer_rnn, train_loader, 10, "RNN", device)
-gru = train_model(gru, mse, optimizer_rnn, train_loader, 10, "GRU", device)
-lstm = train_model(lstm, mse, optimizer_rnn, train_loader, 10, "LSTM", device)
+if not Path("models/rnn.pth").exists():
+    optimizer_rnn = optim.Adam(rnn.parameters(), lr=0.001)
+    rnn = train_model(rnn, mse, optimizer_rnn, train_loader, 10, "RNN", device)
+    torch.save(rnn.state_dict(), "models/rnn.pth")
+else:
+    rnn.load_state_dict(torch.load("models/rnn.pth"))
+if not Path("models/gru.pth").exists():
+    optimizer_gru = optim.Adam(gru.parameters(), lr=0.001)
+    gru = train_model(gru, mse, optimizer_gru, train_loader, 10, "GRU", device)
+    torch.save(gru.state_dict(), "models/gru.pth")
+else:
+    gru.load_state_dict(torch.load("models/gru.pth"))
+if not Path("models/lstm.pth").exists():
+    optimizer_lstm = optim.Adam(lstm.parameters(), lr=0.001)
+    lstm = train_model(lstm, mse, optimizer_lstm, train_loader, 10, "LSTM", device)
+    torch.save(lstm.state_dict(), "models/lstm.pth")
+else:
+    lstm.load_state_dict(torch.load("models/lstm.pth"))
 
-df_test = pd.read_csv("datasets/household_power_test.csv", index_col="Timestamp", parse_dates=["Timestamp"])
+df_test = pd.read_csv("data/household_power_test.csv", index_col="Timestamp", parse_dates=["Timestamp"])
 df_test_lagged = make_lag_df(df_test, original_features, window)
 lagged_features = df_test_lagged.columns
 df_test_lagged["Global_active_power"] = df_test.loc[df_test_lagged.index, "Global_active_power"].astype("float32")
