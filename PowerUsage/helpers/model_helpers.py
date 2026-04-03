@@ -1,18 +1,30 @@
 import torch
 from torch.utils.data import TensorDataset, DataLoader
 import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 
 
 
 def make_lag_df(df, features, window):
-    df_copy = df.copy()
+    # 1. Start a list with the original index to keep things aligned
+    new_cols = []
+    
     for feature in features:
         for i in range(window, 0, -1):
-            col = f"{feature}_t_{i}"
-            df_copy[col] = df_copy[feature].shift(i)
-    df_copy = df_copy.drop(features, axis=1)
-    df_copy = df_copy.dropna()
-    return df_copy
+            col_name = f"{feature}_t_{i}"
+            # 2. Create the shifted series and give it the correct name
+            shifted_series = df[feature].shift(i).rename(col_name)
+            new_cols.append(shifted_series)
+    
+    # 3. Concatenate everything at once (extremely fast)
+    # axis=1 means join side-by-side as columns
+    lagged_df = pd.concat(new_cols, axis=1)
+    
+    # 4. Drop the rows with NaNs (the 'warm-up' period for the window)
+    lagged_df = lagged_df.dropna()
+    
+    return lagged_df
 
 
 def df_to_loader(df, batch, window, lagged_features, shuffle=True):
@@ -29,6 +41,7 @@ def df_to_loader(df, batch, window, lagged_features, shuffle=True):
 
 def train_model(model, loss_fn, optimizer, loader, epochs, model_name, device):
     model.train()
+    loss_history = []
     for epoch in range(epochs):
         epoch_loss = 0
         for batch, (data, target) in enumerate(loader):
@@ -40,9 +53,10 @@ def train_model(model, loss_fn, optimizer, loader, epochs, model_name, device):
             loss.backward()
             optimizer.step()
             epoch_loss += loss.item()
+        loss_history.append(epoch_loss)
         print(f"{model_name} - loss for epoch {epoch + 1}: {epoch_loss}")
     print()
-    return model
+    return model, loss_history
 
 
 def predict(model, loader, device):
@@ -63,3 +77,18 @@ def model_size_bytes(model):
     for t in list(model.parameters()) + list(model.buffers()):
         size += t.numel() * t.element_size()
     return size
+
+def plot_loss(rnn_losses, gru_losses, lstm_losses):
+    # After your training loop finishes:
+    plt.figure(figsize=(10, 6))
+    plt.plot(rnn_losses, label='RNN')
+    plt.plot(gru_losses, label='GRU')
+    plt.plot(lstm_losses, label='LSTM')
+
+    plt.title('Training Loss Comparison')
+    plt.xlabel('Epochs')
+    plt.ylabel('MSE Loss')
+    plt.legend()
+
+    # CRITICAL: This line opens the window!
+    plt.show()
