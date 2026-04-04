@@ -4,9 +4,9 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
-from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_squared_error, mean_absolute_error
 
-from helpers.model_helpers import make_lag_df, df_to_loader, train_model, predict, model_size_bytes, plot_loss
+from helpers.model_helpers import make_lag_df, df_to_loader, train_model, predict, model_size_bytes, plot_loss, plot_regression_margin
 from models import RNN, GRU, LSTM
 
 from pathlib import Path
@@ -90,11 +90,6 @@ rnn_preds, rnn_targs = predict(rnn, test_loader, device)
 gru_preds, gru_targs = predict(gru, test_loader, device)
 lstm_preds, lstm_targs = predict(lstm, test_loader, device)
 
-rnn_mse = mean_squared_error(rnn_preds, rnn_targs)
-gru_mse = mean_squared_error(gru_preds, gru_targs)
-lstm_mse = mean_squared_error(lstm_preds, lstm_targs)
-print(f"MSE: {rnn_mse} - {gru_mse} - {lstm_mse}")
-
 print()
 
 print("2nd to last prediction and target:")
@@ -110,3 +105,21 @@ print(f"LSTM size: {model_size_bytes(lstm) / 1024**2:.2f} MB")
 
 if len(rnn_loss_history) > 0 and len(gru_loss_history) > 0 and len(lstm_loss_history) > 0:
     plot_loss(rnn_loss_history, gru_loss_history, lstm_loss_history)
+
+show_plots = False
+if show_plots:
+    plot_regression_margin(rnn_targs, rnn_preds, "RNN", margin=0.2)
+    plot_regression_margin(gru_targs, gru_preds, "GRU", margin=0.2)
+    plot_regression_margin(lstm_targs, lstm_preds, "LSTM", margin=0.2)
+
+print()
+
+rnn_mse = mean_squared_error(rnn_preds, rnn_targs)
+gru_mse = mean_squared_error(gru_preds, gru_targs)
+lstm_mse = mean_squared_error(lstm_preds, lstm_targs)
+print(f"MSE: RNN: {rnn_mse} - GRU: {gru_mse} - LSTM: {lstm_mse}")
+
+rnn_mae = mean_absolute_error(rnn_targs, rnn_preds)
+gru_mae = mean_absolute_error(gru_targs, gru_preds)
+lstm_mae = mean_absolute_error(lstm_targs, lstm_preds)
+print(f"MAE: RNN: {rnn_mae} - GRU: {gru_mae} - LSTM: {lstm_mae}")

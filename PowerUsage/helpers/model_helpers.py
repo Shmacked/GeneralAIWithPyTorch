@@ -92,3 +92,39 @@ def plot_loss(rnn_losses, gru_losses, lstm_losses):
 
     # CRITICAL: This line opens the window!
     plt.show()
+
+def plot_regression_margin(y_true, y_pred, model_name, margin=0.1):
+    # 1. Convert to numpy arrays if they aren't already
+    y_true = np.array(y_true).flatten()
+    y_pred = np.array(y_pred).flatten()
+    
+    # 2. Calculate the absolute error
+    errors = np.abs(y_true - y_pred)
+    
+    # 3. Create a mask for points within the margin
+    within_margin = errors <= margin
+    
+    # 4. Plotting
+    plt.figure(figsize=(8, 8))
+    
+    # Plot points within margin (Green) and outside (Red)
+    plt.scatter(y_true[within_margin], y_pred[within_margin], 
+                color='green', alpha=0.5, label=f'Within {margin}kW')
+    plt.scatter(y_true[~within_margin], y_pred[~within_margin], 
+                color='red', alpha=0.3, label='Outside Margin')
+    
+    # Draw the "Perfect Prediction" diagonal line
+    max_val = max(y_true.max(), y_pred.max())
+    min_val = min(y_true.min(), y_pred.min())
+    plt.plot([min_val, max_val], [min_val, max_val], 'k--', lw=2, label='Perfect Fit')
+    
+    # Draw the Margin Bounds (dashed lines)
+    plt.plot([min_val, max_val], [min_val + margin, max_val + margin], 'g--', alpha=0.3)
+    plt.plot([min_val, max_val], [min_val - margin, max_val - margin], 'g--', alpha=0.3)
+
+    plt.xlabel('Actual Power Usage (kW)')
+    plt.ylabel('Predicted Power Usage (kW)')
+    plt.title(f'{model_name}: Accuracy Margin ({margin} kW)')
+    plt.legend()
+    plt.grid(True, alpha=0.2)
+    plt.show()
