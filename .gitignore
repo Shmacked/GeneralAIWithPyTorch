@@ -10,3 +10,6 @@ wheels/
 .venv
 NumberIdentification/data
 NumberIdentification/confusion_matrix_*.png
+
+# CIFAR-10 download/cache (large; do not commit)
+CIFAR10_pretrained_v_original/datasets/
